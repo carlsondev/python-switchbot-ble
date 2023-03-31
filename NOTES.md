@@ -26,7 +26,8 @@
 ## Actions
 
 $$
-\begin{array}{|c|c|l|l|c|}
+\begin{align*}
+&\begin{array}{|c|c|l|l|c|}
 \hline \text { Name } & \text { Handle } & \text { Unencrypted } & \text { Encrypted } & \text { Notes }\\
 \hline 
 \text{press}    &               & \texttt{0x57 0x01}      & \texttt{0x57 0x11 $\texttt{pw}_8$}       &  \text{This seems to be called at certain times, not sure on the pattern}  \\
@@ -35,22 +36,27 @@ $$
 \hline
 \end{array}
 \\
-\texttt{pw}_8\text{: crc32 checksum of the password in 4 bytes}
+\\
+&\texttt{pw}_8\text{: crc32 checksum of the password in 4 bytes}
+\end{align*}
 $$
 
 ## Settings
 
 $$
-\begin{array}{|c|c|l|l|c|}
+\begin{align*}
+&\begin{array}{|c|c|l|l|c|}
 \hline \text { Name } & \text { Handle } & \text { Unencrypted } & \text { Encrypted } & \text { Notes }\\
 \hline 
-\text{set password}     &               & \texttt{0x57 0x07 0x01 0x04 $\texttt{pw\_new}_8$ 0x00 0x00}                      &   &                                                              \\
-\text{update password}  & \texttt{0x10} & \texttt{0x57 0x17 $\texttt{pw\_old}_8$ 0x01 0x04 $\texttt{pw\_new}_8$ 0x00 0x00} &   &                                                              \\
+\text{set password}     &               & \texttt{0x57 0x07 0x01 0x04 $\texttt{pw-new}_8$ 0x00 0x00}                      &   &                                                              \\
+\text{update password}  & \texttt{0x10} & \texttt{0x57 0x17 $\texttt{pw-old}_8$ 0x01 0x04 $\texttt{pw-new}_8$ 0x00 0x00} &   &                                                              \\
 \text{get settings}     &               & \texttt{0x57 0x02}                                                               &   &  \text{This is sent twice for some reason during init}       \\
 \text{sync timer}       &               & \texttt{0x57 0x09 0x01 $\texttt{t}_{16}$ 0x64 0x14 0xD0 0xA9}                    &   &  \text{Not necsessarily true, $\texttt{t}_{16}$  is 4 zeroed bytes} \\
 \hline
 \end{array}
 \\
-\texttt{pw\_new}_8\text{: crc32 checksum of the new password in 4 bytes} \\
-\texttt{pw\_old}_8\text{: crc32 checksum of the old password in 4 bytes}
+\\
+&\texttt{pw-new}_8 \text{: crc32 checksum of the new password in 4 bytes} \\
+&\texttt{pw-old}_8 \text{: crc32 checksum of the old password in 4 bytes}
+\end{align*}
 $$
