@@ -21,6 +21,10 @@
     * Set Password Packet: `0x57 0x07 0x01 0x04 0x9B 0xE3 0xE0 0xA3 0x00 0x00`
     * Press? Packet (with new password): `0x57 0x12 0x9B 0xE3 0xE0 0xA3`
 
+
+# Information
+- Ben's SwitchBot MAC is `F6:9A:4E:9C:3F:3B` with a base nickname of Bot `3B`. I have a theory that multiple prefix bytes are the same between SwitchBots.
+
 # Deduced Packet Structures
 
 ## Actions
