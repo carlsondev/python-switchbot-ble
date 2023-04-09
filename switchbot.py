@@ -4,9 +4,11 @@ import asyncio
 import enum
 import zlib
 import time
+import math
 
-from bot_types import SwitchBotReqType, SwitchBotCommand, SwitchBotRespStatus, SwitchBotAction, f_bytes
+from bot_types import SwitchBotReqType, SwitchBotCommand, SwitchBotRespStatus, SwitchBotAction, TimeManagementInfoSubCommand, f_bytes
 from bot_information import BotInformation
+from alarm_info import AlarmInfo
 
 # Functionality to capture packets for
 #   - Custom Mode
@@ -48,7 +50,12 @@ class VirtualSwitchBot():
 
         await self._client.start_notify(SwitchBotCommand.RESP_CHAR_UUID.value, self._notif_callback_handler)
 
-        await self.get_basic_device_info()
+        await self.update_basic_device_info()
+        await asyncio.sleep(1)
+        await self.fetch_alarm_count()
+        await asyncio.sleep(1)
+        await self.fetch_system_time()
+        await asyncio.sleep(1)
 
     async def disconnect(self):
         if self._client is None:
@@ -83,6 +90,22 @@ class VirtualSwitchBot():
             self._info.password_str = curr_password
             print(f"Successfully retrieved basic information")
             return
+
+        if request_type == SwitchBotReqType.GET_TIME_MGMT_INFO:
+            resp_len = len(response_data)
+            if resp_len == 1:
+                    self._info.alarm_count = response_data[0]
+                    print(f"Successfully retrieved alarm count ({self._info.alarm_count})")
+                    
+
+            if resp_len == 8:
+                    self._info.system_timestamp = int.from_bytes(response_data, byteorder='big', signed=False)
+                    print(f"Successfully recieved system time ({self._info.system_timestamp})")
+                    
+            if resp_len == 11:
+                    print(f"Successfully recieved alarm info for index {response_data[1]}")
+                    self._info.update_alarm(response_data)
+
 
     async def disconnect_callback_handler(self):
         print("Disconnecting from SwitchBot...")
@@ -208,7 +231,7 @@ class VirtualSwitchBot():
         print(f"Sent {len(action_set)} actions with a 1 second delay between them ({f_bytes(msg_packet)})")
 
 
-    async def get_basic_device_info(self):
+    async def update_basic_device_info(self):
         
         payload = self._check_append_pass_check([])
 
@@ -217,19 +240,146 @@ class VirtualSwitchBot():
 
         print(f"Sent basic device info request ({f_bytes(msg_packet)})")
 
-    async def sync_timer(self):
+
+    def _build_set_dev_time_mgm_info_payload(self, subcommand : TimeManagementInfoSubCommand, payload : bytearray, alarm_id : Optional[int] = None) -> bytearray:
+
+        subcmd_value = subcommand.value
+
+        if subcommand == TimeManagementInfoSubCommand.DEVICE_TIME:
+            if len(payload) != 0 and len(payload) != 8:
+                print(f"Cannot set device time with payload length {len(payload)}, must be equal to 8!")
+                raise UserWarning(f"Cannot set device time with payload length {len(payload)}, must be equal to 8!")
+        elif subcommand == TimeManagementInfoSubCommand.ALARM_COUNT:
+            if len(payload) != 0 and  len(payload) != 1:
+                print(f"Cannot set alarm count with payload length {len(payload)}, must be equal to 1!")
+                raise UserWarning(f"Cannot set alarm count with payload length {len(payload)}, must be equal to 1!")
+        elif subcommand == TimeManagementInfoSubCommand.ALARM_INFO:
+            if len(payload) != 0 and len(payload) != 11:
+                print(f"Cannot set alarm info with payload length {len(payload)}, must be equal to 11!")
+                raise UserWarning(f"Cannot set alarm info with payload length {len(payload)}, must be equal to 11!")
+            
+            if alarm_id is None:
+                print("Cannot set alarm info without an alarm ID!")
+                raise UserWarning("Cannot set alarm info without an alarm ID!")
+            
+            if alarm_id < 0 or alarm_id > 4:
+                print(f"Cannot set alarm info with alarm ID {alarm_id}, must be between 0 and 4!")
+                raise UserWarning(f"Cannot set alarm info with alarm ID {alarm_id}, must be between 0 and 4!")
+            # Set nth task/alarm
+            subcmd_value = subcmd_value | (alarm_id << 4)
+
+        payload = bytearray([subcmd_value]) + payload
+        payload = self._check_append_pass_check(payload, preappend=True)
+        return payload
+
+    async def sync_time(self):
 
         unix_seconds = int(time.time())
         seconds_bytes = unix_seconds.to_bytes(8, byteorder="big")
 
-        payload = bytearray(0x01)
-        payload += seconds_bytes
-        payload = self._check_append_pass_check(payload, preappend=True)
+        payload = self._build_set_dev_time_mgm_info_payload(TimeManagementInfoSubCommand.DEVICE_TIME, seconds_bytes)
 
         msg_packet = self._build_request_msg(SwitchBotReqType.SET_TIME_MGMT_INFO, payload)
         await self._send_request(msg_packet, SwitchBotReqType.SET_TIME_MGMT_INFO)
 
         print(f"Sent sync timer request ({f_bytes(msg_packet)})")
+
+    async def update_alarm_count(self, alarm_count : int):
+        if alarm_count < 0 or alarm_count > 4:
+            print(f"Cannot set alarm count to {alarm_count}, must be between 0 and 4!")
+            raise UserWarning(f"Cannot set alarm count to {alarm_count}, must be between 0 and 4!")
+        
+        payload = self._build_set_dev_time_mgm_info_payload(TimeManagementInfoSubCommand.ALARM_COUNT, bytearray([alarm_count]))
+
+        msg_packet = self._build_request_msg(SwitchBotReqType.SET_TIME_MGMT_INFO, payload)
+        await self._send_request(msg_packet, SwitchBotReqType.SET_TIME_MGMT_INFO)
+
+        print(f"Sent set alarm count request ({f_bytes(msg_packet)})")
+
+    async def update_alarm_info(self, alarm_id : int, alarm_info : AlarmInfo):
+        payload = [self.info.alarm_count, alarm_id]
+
+        repeat_byte = 0x00
+        if alarm_info.execute_repeatedly:
+            repeat_byte |= (0x1 << 7) # Set first bit
+        
+        # Bits 6-0: Sun-Monday, 1 = Valid, 0 = Invalid
+        for dow in alarm_info.valid_days:
+            repeat_byte |= (0x1 << dow.value) # Set nth bit
+
+        payload.append(repeat_byte)
+
+        
+        exec_hours = math.floor(alarm_info.execution_time.seconds / 60 / 60)
+        exec_minutes = math.floor(alarm_info.execution_time.seconds / 60) - (exec_hours * 60)
+        
+        # These may be hex hour and minute (0x10 for 10 am and 0x23 for 23 minutes), its unclear from the documentation
+        payload.append(exec_hours)
+        payload.append(exec_minutes)
+
+        payload.append(alarm_info.exec_type.value)
+
+        payload.append(alarm_info.num_continuous_actions)
+
+
+        
+        interval_hours = math.floor(alarm_info.interval.seconds / 60 / 60)
+        interval_minutes = math.floor(alarm_info.interval.seconds / 60) - (interval_hours * 60)
+        interval_seconds = alarm_info.interval.seconds - (interval_minutes * 60) - (interval_hours * 60 * 60)
+
+        if interval_hours > 5:
+            print(f"Cannot set alarm interval to {interval_hours} hours, must be less than 5!")
+            raise UserWarning(f"Cannot set alarm interval to {interval_hours} hours, must be less than 5!")
+
+        if interval_seconds % 10 != 0:
+            print(f"Cannot set alarm interval to {interval_seconds} seconds, must be a multiple of 10!")
+            print("Rounding down to the nearest multiple of 10")
+            interval_seconds = math.floor(interval_seconds / 10) * 10
+
+        
+
+        payload.append(interval_hours) # Append hours
+        payload.append(interval_minutes) # Append minutes
+        payload.append(interval_seconds) # Append minutes
+
+        payload = self._build_set_dev_time_mgm_info_payload(TimeManagementInfoSubCommand.ALARM_INFO, bytearray(payload), alarm_id)
+
+        msg_packet = self._build_request_msg(SwitchBotReqType.SET_TIME_MGMT_INFO, payload)
+        await self._send_request(msg_packet, SwitchBotReqType.SET_TIME_MGMT_INFO)
+
+        print(f"Sent update alarm info request for alarm ID {alarm_id} ({f_bytes(msg_packet)})")
+
+    
+    async def fetch_system_time(self):
+
+        payload = self._build_set_dev_time_mgm_info_payload(TimeManagementInfoSubCommand.DEVICE_TIME, bytearray())
+
+        msg_packet = self._build_request_msg(SwitchBotReqType.GET_TIME_MGMT_INFO, payload)
+        await self._send_request(msg_packet, SwitchBotReqType.GET_TIME_MGMT_INFO)
+
+        print(f"Sent fetch system time request ({f_bytes(msg_packet)})")
+
+    async def fetch_alarm_count(self):
+
+        payload = self._build_set_dev_time_mgm_info_payload(TimeManagementInfoSubCommand.ALARM_COUNT, bytearray())
+        
+        msg_packet = self._build_request_msg(SwitchBotReqType.GET_TIME_MGMT_INFO, payload)
+        await self._send_request(msg_packet, SwitchBotReqType.GET_TIME_MGMT_INFO)
+
+        print(f"Sent fetch alarm count request ({f_bytes(msg_packet)})")
+
+    async def fetch_alarm_info(self, alarm_id : int):
+
+        payload = self._build_set_dev_time_mgm_info_payload(TimeManagementInfoSubCommand.ALARM_INFO, bytearray(), alarm_id=alarm_id)
+        
+        msg_packet = self._build_request_msg(SwitchBotReqType.GET_TIME_MGMT_INFO, payload)
+        await self._send_request(msg_packet, SwitchBotReqType.GET_TIME_MGMT_INFO)
+
+        print(f"Sent fetch alarm info request for Alarm {alarm_id} ({f_bytes(msg_packet)})")
+
+        
+
+
 
 
     @property

@@ -33,6 +33,11 @@ class SwitchBotMode(enum.Enum):
     ONE_STATE = 0x0
     ON_OFF_STATE = 0x1
 
+class TimeManagementInfoSubCommand(enum.Enum):
+    DEVICE_TIME = 0x01
+    ALARM_COUNT = 0x02
+    ALARM_INFO = 0x03
+
 # Unsure on the use of this, probbaly a larger ecosystem thing
 class SwitchBotGroup(enum.Enum):
     GROUP_A = 0x0

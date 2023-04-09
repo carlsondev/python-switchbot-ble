@@ -15,7 +15,7 @@ class SwitchBotMITM():
     async def start(self):
         try:
 
-            found_switchbots = await SwitchBotScanner.scan(5)
+            found_switchbots = await SwitchBotScanner.scan(3)
 
             if len(found_switchbots) == 0:
                 print("No SwitchBots found.")
@@ -29,10 +29,12 @@ class SwitchBotMITM():
             await asyncio.sleep(5)
             await self._virt_switchbot.set_bot_state(SwitchBotAction.OFF)
             await asyncio.sleep(5)
-            # await self._virt_switchbot.set_password("1235")
-            # await asyncio.sleep(5)
             await self._virt_switchbot.set_password(None)
             await asyncio.sleep(5)
+            await self._virt_switchbot.fetch_alarm_info(0)
+            await asyncio.sleep(5)
+            # await self._virt_switchbot.set_password("1235")
+            # await asyncio.sleep(5)
             await self._virt_switchbot.disconnect()
 
 

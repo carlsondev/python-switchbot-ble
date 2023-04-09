@@ -1,10 +1,14 @@
 from bot_types import SwitchBotDeviceType, SwitchBotMode, SwitchBotGroup, f_bytes
-from typing import Optional, List
+from typing import Optional, List, Dict
 import zlib
+from datetime import datetime, timedelta
+from alarm_info import AlarmInfo, AlarmExecAction, AlarmExecType, DayOfWeek
 
 class BotInformation:
 
     def __init__(self, get_info_byte_array : Optional[bytearray] = None):
+
+        # Start Device Info
         self._remaining_battery_percent = 100    # 0-100
         self._firmware_version : float = 6.3
         self._push_button_strength = 100         # 0-100
@@ -30,6 +34,19 @@ class BotInformation:
 
         self._current_pass_str : Optional[str] = None
         self._current_pass_checksum : Optional[bytearray] = None
+
+        # End Device Info
+
+        # Start time management info
+
+        # UNIX time since epoch
+        self._current_timestamp = 0
+
+        self._alarm_count = 0
+
+        self._alarm_infos : Dict[int, AlarmInfo] = {}
+        # End time management info
+
 
 
         if get_info_byte_array is not None:
@@ -99,6 +116,9 @@ class BotInformation:
             does_require_utc_sync = (update_utc_flag_bat_byte & 0x80) == 0x80 # First bit is if the device requires a UTC sync
 
             self._remaining_battery_percent = int(update_utc_flag_bat_byte & 0x7F) # Last 7 bits are the remaining battery percent
+
+
+    # Basic Info Properties
 
     @property
     def password_str(self) -> Optional[str]:
@@ -177,6 +197,64 @@ class BotInformation:
     @property
     def device_groups(self) -> List[SwitchBotGroup]:
         return self._device_groups
+
+    # End Basic Info Properties
+
+    # Start Time Management Properties
+
+    @property
+    def alarm_count(self) -> int:
+        return self._alarm_count
+
+    @alarm_count.setter
+    def alarm_count(self, count : int):
+        if count < 0 or count > 4:
+            print(f"Invalid alarm count {count}, must be between 0 and 4!")
+            raise UserWarning(f"Invalid alarm count {count}, must be between 0 and 4!")
+
+        self._alarm_count = count
+
+    @property
+    def system_timestamp(self) -> int:
+        return self._current_timestamp
+
+    @system_timestamp.setter
+    def system_timestamp(self, timestamp : int):
+        if timestamp < 0:
+            print(f"Invalid timestamp {timestamp}, must be greater than 0!")
+            raise UserWarning(f"Invalid timestamp {timestamp}, must be greater than 0!")
+        self._current_timestamp = timestamp
+
+    @property
+    def active_alarms(self) -> List[AlarmInfo]:
+        return [info for _,info in self._alarm_infos.items()]
     
+    def update_alarm(self, response_data : bytearray):
 
+        if len(response_data) != 11:
+            print(f"Could not update alarm, invalid response data length {len(response_data)} (Must be 11)")
 
+        alarm_count = response_data[0]
+        alarm_idx = response_data[1]
+
+        exec_repeatedly = response_data[2] >> 7 == 0
+
+        valid_days : List[DayOfWeek] = []
+
+        for dow in DayOfWeek:
+            if response_data[2] & (1 << dow.value) == 1:
+                valid_days.append(dow)
+
+        exec_time = timedelta(hours=response_data[3], minutes=response_data[4])
+
+        exec_type = AlarmExecType(response_data[5])
+        exec_action = AlarmExecAction(response_data[6])
+
+        action_count = response_data[7]
+
+        exec_interval = timedelta(hours=response_data[8], minutes=response_data[9], seconds=response_data[10])
+
+        info = AlarmInfo(exec_repeatedly, valid_days, exec_time, exec_type, exec_action, action_count, exec_interval)
+
+        self._alarm_count = alarm_count
+        self._alarm_infos[alarm_idx] = info
