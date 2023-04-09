@@ -378,7 +378,13 @@ class VirtualSwitchBot():
         print(f"Sent fetch alarm info request for Alarm {alarm_id} ({f_bytes(msg_packet)})")
 
         
+    async def set_long_press_duration(self, duration_s : int):
+        payload = self._build_request_msg(SwitchBotReqType.EXTENDED_COMMAND, bytearray(duration_s))
 
+        msg_packet = self._build_request_msg(SwitchBotReqType.EXTENDED_COMMAND, payload)
+        await self._send_request(msg_packet, SwitchBotReqType.EXTENDED_COMMAND)
+
+        print(f"Sent set long press duration request for duration {duration_s} ({f_bytes(msg_packet)})")
 
 
 
