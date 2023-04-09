@@ -1,21 +1,29 @@
 import asyncio
-
+from typing import Optional
 
 from switchbot import VirtualSwitchBot
+from switchbot_scanner import SwitchBotScanner
 from bot_types import SwitchBotAction
-
-ben_switchbot_mac = "F6:9A:4E:9C:3F:3B"
 
 class SwitchBotMITM():
 
 
-    def __init__(self, address : str) -> None:
-        self._switchbot_mac = address
-        self._virt_switchbot = VirtualSwitchBot(address, "1235")
+    def __init__(self) -> None:
+        self._virt_switchbot : Optional[VirtualSwitchBot] = None
 
 
     async def start(self):
         try:
+
+            found_switchbots = await SwitchBotScanner.scan(5)
+
+            if len(found_switchbots) == 0:
+                print("No SwitchBots found.")
+                return
+            
+            self._virt_switchbot = found_switchbots[0]
+            self._virt_switchbot.info.password_str = "1235"
+
             await self._virt_switchbot.connect()
             await self._virt_switchbot.set_bot_state(SwitchBotAction.ON)
             await asyncio.sleep(5)
@@ -29,8 +37,9 @@ class SwitchBotMITM():
 
 
         except KeyboardInterrupt:
-            self._virt_switchbot.disconnect_callback_handler(None)
+            if self._virt_switchbot is not None:
+                self._virt_switchbot.disconnect_callback_handler(None)
             print("Exiting...")
 if __name__ == "__main__":
-    bot = SwitchBotMITM(ben_switchbot_mac)
+    bot = SwitchBotMITM()
     asyncio.run(bot.start())

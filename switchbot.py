@@ -232,3 +232,8 @@ class VirtualSwitchBot():
         print(f"Sent sync timer request ({f_bytes(msg_packet)})")
 
 
+    @property
+    def info(self) -> BotInformation:
+        return self._info
+
+
