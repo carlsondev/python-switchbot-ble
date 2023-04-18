@@ -13,15 +13,14 @@ class SwitchBotMITM:
     async def start(self):
         try:
 
-            found_switchbots = await SwitchBotScanner.scan(3)
+            async for switchbot in SwitchBotScanner.scan(1):
+                print(f"Found SwitchBot: {switchbot.mac_address}")
+                self._virt_switchbot = switchbot
+                self._virt_switchbot.info.password_str = "1235"
+                break
 
-            if len(found_switchbots) == 0:
-                print("No SwitchBots found.")
-                return
-
-            self._virt_switchbot = found_switchbots[0]
-            self._virt_switchbot.info.password_str = "1235"
-
+            await asyncio.sleep(5)
+            print("Connecting...")
             await self._virt_switchbot.connect()
             await self._virt_switchbot.set_bot_state(SwitchBotAction.ON)
             await asyncio.sleep(5)
@@ -31,8 +30,8 @@ class SwitchBotMITM:
             await asyncio.sleep(5)
             await self._virt_switchbot.fetch_alarm_info(0)
             await asyncio.sleep(5)
-            # await self._virt_switchbot.set_password("1235")
-            # await asyncio.sleep(5)
+            await self._virt_switchbot.set_password("1235")
+            await asyncio.sleep(5)
             await self._virt_switchbot.disconnect()
 
         except KeyboardInterrupt:

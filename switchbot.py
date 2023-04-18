@@ -1,4 +1,4 @@
-from bleak import BleakClient, BleakScanner
+from bleak import BleakClient, BleakScanner, BLEDevice
 from typing import Optional, List, Union
 import asyncio
 import enum
@@ -24,9 +24,12 @@ from alarm_info import AlarmInfo
 
 
 class VirtualSwitchBot:
-    def __init__(self, mac_address: str, password_str: Optional[str] = None):
+    def __init__(self, mac_address: str, device : Optional[BLEDevice] = None, password_str: Optional[str] = None):
 
         self._address = mac_address
+
+        # Used for setting up a pre-connected device, if available
+        self._device = device
         self._client: Optional[BleakClient] = None
 
         self._info = BotInformation()
@@ -41,15 +44,16 @@ class VirtualSwitchBot:
 
         self._request_response_queue = asyncio.Queue()
 
-        device = await BleakScanner.find_device_by_address(self._address)
-        if device is None:
-            print(f"Device not found for MAC Address {self._address}")
-            exit(1)
+        if self._device is None:
+            self._device = await BleakScanner.find_device_by_address(self._address)
+            if self._device is None:
+                print(f"Device not found for MAC Address {self._address}")
+                exit(1)
 
-        print(f"Found SwitchBot: {device.name} ({device.address})")
+            print(f"Found SwitchBot: {self._device.name} ({self._device.address})")
 
         self._client = BleakClient(
-            device,
+            self._device,
             disconnected_callback=lambda _: asyncio.run_coroutine_threadsafe(
                 self.disconnect_callback_handler(), asyncio.get_event_loop()
             ),
@@ -443,6 +447,10 @@ class VirtualSwitchBot:
         print(
             f"Sent set long press duration request for duration {duration_s} ({f_bytes(msg_packet)})"
         )
+
+    @property
+    def mac_address(self) -> str:
+        return self._address
 
     @property
     def info(self) -> BotInformation:
