@@ -1,9 +1,9 @@
 import asyncio
 from typing import Optional
 
-from switchbot import VirtualSwitchBot
-from switchbot_scanner import SwitchBotScanner
-from bot_types import SwitchBotAction
+from switchbot_api import VirtualSwitchBot
+from switchbot_api import SwitchBotScanner
+from switchbot_api.bot_types import SwitchBotAction
 
 
 class SwitchBotMITM:
