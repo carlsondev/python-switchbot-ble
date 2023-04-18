@@ -1,7 +1,8 @@
 from bleak import BleakScanner, BLEDevice, AdvertisementData
 from typing import Tuple, AsyncIterator, Optional
-from switchbot import VirtualSwitchBot
 import asyncio
+
+from .switchbot import VirtualSwitchBot
 
 
 class SwitchBotScanner:

@@ -6,7 +6,7 @@ import zlib
 import time
 import math
 
-from bot_types import (
+from .bot_types import (
     SwitchBotReqType,
     SwitchBotCommand,
     SwitchBotRespStatus,
@@ -14,8 +14,8 @@ from bot_types import (
     TimeManagementInfoSubCommand,
     f_bytes,
 )
-from bot_information import BotInformation
-from alarm_info import AlarmInfo
+from .bot_information import BotInformation
+from .alarm_info import AlarmInfo
 
 # Functionality to capture packets for
 #   - Custom Mode
