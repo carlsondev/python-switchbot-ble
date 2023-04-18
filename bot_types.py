@@ -93,4 +93,12 @@ class SwitchBotRespStatus(enum.Enum):
 
 # Technically doesn't belong here but should be accessible everywhere
 def f_bytes(data: bytearray) -> str:
+    """
+    Formats byte array to readable hex string
+
+    :param data: The data to format
+    :type data: bytearray
+    :return: Space seperated hex string
+    :rtype: str
+    """
     return " ".join(hex(x) for x in data)

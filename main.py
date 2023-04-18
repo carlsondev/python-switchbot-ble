@@ -36,7 +36,7 @@ class SwitchBotMITM:
 
         except KeyboardInterrupt:
             if self._virt_switchbot is not None:
-                self._virt_switchbot.disconnect_callback_handler(None)
+                await self._virt_switchbot.disconnect_callback_handler()
             print("Exiting...")
 
 
