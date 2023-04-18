@@ -1,4 +1,4 @@
-from bleak import BleakClient, BleakScanner, BLEDevice
+from bleak import BleakClient, BleakScanner, BLEDevice, BleakGATTCharacteristic
 from typing import Optional, List, Union
 import asyncio
 import enum
@@ -25,7 +25,16 @@ from alarm_info import AlarmInfo
 
 class VirtualSwitchBot:
     def __init__(self, mac_address: str, device : Optional[BLEDevice] = None, password_str: Optional[str] = None):
+        """
+        A SwitchBot wrapper class for sending commands to/from the physical SwitchBot
 
+        :param mac_address: The MAC address of the SwitchBot
+        :type mac_address: str
+        :param device: Already found BLEDevice (avoids finding twice)
+        :type device: Optional[bleak.BLEDevice]
+        :param password_str: The SwitchBot's password, None if no password is set
+        :type password_str: Optional[str]
+        """
         self._address = mac_address
 
         # Used for setting up a pre-connected device, if available
@@ -41,7 +50,9 @@ class VirtualSwitchBot:
             self._info.password_str = password_str
 
     async def connect(self):
-
+        """
+        Find (if device has not been set), and connect to the SwitchBot
+        """
         self._request_response_queue = asyncio.Queue()
 
         if self._device is None:
@@ -75,19 +86,30 @@ class VirtualSwitchBot:
         await asyncio.sleep(1)
 
     async def disconnect(self):
+        """
+        Disconnect from SwitchBot
+        """
         if self._client is None:
             print("Client is not connected. Cannot disconnect.")
             return
         await self._client.disconnect()
 
-    async def _notif_callback_handler(self, characteristic, data):
+    async def _notif_callback_handler(self, characteristic : BleakGATTCharacteristic, data : bytearray):
+        """
 
+        :param characteristic: The characteristic that was originally requested
+        :type characteristic: bleak.BleakGATTCharacteristic
+        :param data: The data received
+        :type data: bytearray
+        :return:
+        :rtype:
+        """
         request_type: SwitchBotReqType = await self._request_response_queue.get()
 
         status_enum = SwitchBotRespStatus(data[0])
         response_data = data[1:]
         print(
-            f"Recieved response for {request_type.name} with status {status_enum.name} ({status_enum.value}): {f_bytes(response_data)}"
+            f"Received response for {request_type.name} with status {status_enum.name} ({status_enum.value}): {f_bytes(response_data)}"
         )
 
         if status_enum != SwitchBotRespStatus.OK:
@@ -129,13 +151,24 @@ class VirtualSwitchBot:
                 self._info.update_alarm(response_data)
 
     async def disconnect_callback_handler(self):
+        """
+        Called when disconnected from SwitchBot
+        """
         print("Disconnecting from SwitchBot...")
 
         # Used for case when called externally
         if self._client is not None and self._client.is_connected:
-            self._client.disconnect()
+            await self._client.disconnect()
 
     async def _send_request(self, message_bytes: bytearray, request_type: SwitchBotReqType):
+        """
+        Send a request to the SwitchBot
+
+        :param message_bytes: The bytes of the message to send
+        :type message_bytes: bytearray
+        :param request_type: The type of request to send (used for figuring out which message was received)
+        :type request_type: SwitchBotReqType
+        """
         if self._client is None:
             print("Client is not connected. Cannot send request.")
             return
@@ -148,6 +181,16 @@ class VirtualSwitchBot:
     def _check_append_pass_check(
         self, curr_payload: Union[bytearray, List[int]], preappend: bool = False
     ) -> bytearray:
+        """
+        (Pre)Append the password checksum to the payload if the password exists
+
+        :param curr_payload: The payload to modify
+        :type curr_payload: Union[bytearray|List[int]]
+        :param preappend: Whether to preappend the checksum or not (default false)
+        :type preappend: bool
+        :return: Modified payload (or the same if no password)
+        :rtype: bytearray
+        """
         payload = curr_payload.copy()
         if isinstance(curr_payload, list):
             payload = bytearray(payload)
@@ -167,6 +210,18 @@ class VirtualSwitchBot:
     def _build_request_msg(
         self, command_type: SwitchBotReqType, payload: bytearray, version: int = 0
     ) -> bytearray:
+        """
+        Builds the header and appends the payload data to build the entire data packet
+
+        :param command_type: The type of command to send (added to the header)
+        :type command_type: SwitchBotReqType
+        :param payload: The payload added to the header
+        :type payload: bytearray
+        :param version: Version (only 0 at the moment)
+        :type version: int
+        :return: Final request packet bytes
+        :rtype: bytearray
+        """
         msg = bytearray([0x57])
 
         byte_1 = version << 6
@@ -182,7 +237,12 @@ class VirtualSwitchBot:
         return msg
 
     async def set_password(self, new_password: Optional[str]):
+        """
+        Sends a set password message or clears the password if None
 
+        :param new_password: The new password string or None if clearing the password
+        :type new_password: Optional[str]
+        """
         if new_password is None:
             print("Clearing password...")
             payload = self._check_append_pass_check([])
@@ -211,9 +271,16 @@ class VirtualSwitchBot:
 
         self._info.password_str = new_password
 
-    # Single state action
-    async def set_bot_state(self, state: SwitchBotAction):
 
+    async def set_bot_state(self, state: SwitchBotAction):
+        """
+        Sends a "set state" command
+
+        Only can send PRESS, ON, or OFF
+
+        :param state: The action to take (PRESS, ON, and OFF)
+        :type state: SwitchBotAction
+        """
         if state not in [
             SwitchBotAction.PRESS,
             SwitchBotAction.ON,
@@ -238,7 +305,12 @@ class VirtualSwitchBot:
 
     # NOTE: Not working. Once I have a better idea on how things have changed since the docs were written, I'll revisit this
     async def run_action_set(self, action_set: List[SwitchBotAction]):
+        """
+        Run a set of actions (no more than 8) (NOT WORKING RIGHT NOW)
 
+        :param action_set: The set of actions to run in order
+        :type action_set: List[SwitchBotAction]
+        """
         actions = action_set.copy()
         payload = bytearray([actions[0].value])
 
@@ -262,7 +334,9 @@ class VirtualSwitchBot:
         )
 
     async def update_basic_device_info(self):
-
+        """
+        Update internal ``info`` object with basic info (after response is received)
+        """
         payload = self._check_append_pass_check([])
 
         msg_packet = self._build_request_msg(SwitchBotReqType.GET_BASIC_INFO, payload)
@@ -276,7 +350,18 @@ class VirtualSwitchBot:
         payload: bytearray,
         alarm_id: Optional[int] = None,
     ) -> bytearray:
+        """
+        Create set time management information payload
 
+        :param subcommand: The type of time management information command to build
+        :type subcommand: TimeManagementInfoSubCommand
+        :param payload: The data for the associated subcommand
+        :type payload: bytearray
+        :param alarm_id: The alarm ID to set information for (TimeManagementInfoSubCommand.ALARM_INFO)
+        :type alarm_id: Optional[int]
+        :return: Message payload
+        :rtype: bytearray
+        """
         subcmd_value = subcommand.value
 
         if subcommand == TimeManagementInfoSubCommand.DEVICE_TIME:
@@ -321,7 +406,9 @@ class VirtualSwitchBot:
         return payload
 
     async def sync_time(self):
-
+        """
+        Sync unix timestamp between current device and SwitchBot
+        """
         unix_seconds = int(time.time())
         seconds_bytes = unix_seconds.to_bytes(8, byteorder="big")
 
@@ -335,6 +422,12 @@ class VirtualSwitchBot:
         print(f"Sent sync timer request ({f_bytes(msg_packet)})")
 
     async def update_alarm_count(self, alarm_count: int):
+        """
+        Change the amount of alarms (0 <= n <= 4)
+
+        :param alarm_count: The number of alarms to set
+        :type alarm_count: int
+        """
         if alarm_count < 0 or alarm_count > 4:
             print(f"Cannot set alarm count to {alarm_count}, must be between 0 and 4!")
             raise UserWarning(f"Cannot set alarm count to {alarm_count}, must be between 0 and 4!")
@@ -349,6 +442,14 @@ class VirtualSwitchBot:
         print(f"Sent set alarm count request ({f_bytes(msg_packet)})")
 
     async def update_alarm_info(self, alarm_id: int, alarm_info: AlarmInfo):
+        """
+        Update the information for an alarm (alarm count must be set)
+
+        :param alarm_id: The ID of the alarm to update (0 <= id < # of alarms)
+        :type alarm_id: int
+        :param alarm_info: The new alarm info
+        :type alarm_info: AlarmInfo
+        """
         payload = [self.info.alarm_count, alarm_id]
 
         repeat_byte = 0x00
@@ -406,7 +507,9 @@ class VirtualSwitchBot:
         print(f"Sent update alarm info request for alarm ID {alarm_id} ({f_bytes(msg_packet)})")
 
     async def fetch_system_time(self):
-
+        """
+        Fetch current unix timestamp from SwitchBot
+        """
         payload = self._build_set_dev_time_mgm_info_payload(
             TimeManagementInfoSubCommand.DEVICE_TIME, bytearray()
         )
@@ -417,7 +520,9 @@ class VirtualSwitchBot:
         print(f"Sent fetch system time request ({f_bytes(msg_packet)})")
 
     async def fetch_alarm_count(self):
-
+        """
+        Fetch the number of alarms set
+        """
         payload = self._build_set_dev_time_mgm_info_payload(
             TimeManagementInfoSubCommand.ALARM_COUNT, bytearray()
         )
@@ -428,7 +533,11 @@ class VirtualSwitchBot:
         print(f"Sent fetch alarm count request ({f_bytes(msg_packet)})")
 
     async def fetch_alarm_info(self, alarm_id: int):
-
+        """
+        Fetch information for alarm information
+        :param alarm_id: The ID of the alarm to fetch (0 <= id < # of alarms)
+        :type alarm_id: int
+        """
         payload = self._build_set_dev_time_mgm_info_payload(
             TimeManagementInfoSubCommand.ALARM_INFO, bytearray(), alarm_id=alarm_id
         )
@@ -439,6 +548,12 @@ class VirtualSwitchBot:
         print(f"Sent fetch alarm info request for Alarm {alarm_id} ({f_bytes(msg_packet)})")
 
     async def set_long_press_duration(self, duration_s: int):
+        """
+        Set the duration of a "long press" command
+
+        :param duration_s: Duration in seconds
+        :type duration_s: int
+        """
         payload = self._build_request_msg(SwitchBotReqType.EXTENDED_COMMAND, bytearray(duration_s))
 
         msg_packet = self._build_request_msg(SwitchBotReqType.EXTENDED_COMMAND, payload)
@@ -450,8 +565,20 @@ class VirtualSwitchBot:
 
     @property
     def mac_address(self) -> str:
+        """
+        Connected SwitchBot's MAC address
+
+        :return: MAC Address
+        :rtype: str
+        """
         return self._address
 
     @property
     def info(self) -> BotInformation:
+        """
+        Connected SwitchBot's Information
+
+        :return: SwitchBot Information
+        :rtype: BotInformation
+        """
         return self._info
