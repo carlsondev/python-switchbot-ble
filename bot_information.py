@@ -53,9 +53,7 @@ class BotInformation:
     def _init_from_byte_array(self, get_info_byte_array: bytearray):
 
         if len(get_info_byte_array) != 12:
-            raise ValueError(
-                f"Invalid byte array length ({len(get_info_byte_array)})for BotInformation"
-            )
+            raise ValueError(f"Invalid byte array length ({len(get_info_byte_array)})for BotInformation")
 
         # For 1 byte values
         int_data = [int(byte) for byte in get_info_byte_array]
@@ -79,9 +77,7 @@ class BotInformation:
 
     def read_service_bytes(self, service_bytes: bytearray) -> None:
         if len(service_bytes) < 2 or len(service_bytes) > 3:
-            raise ValueError(
-                f"Invalid service bytes length ({len(service_bytes)})for BotInformation"
-            )
+            raise ValueError(f"Invalid service bytes length ({len(service_bytes)})for BotInformation")
 
         # Might be little endian for broadcasting, currently assuming big endian (from BLE requests)
 
@@ -100,14 +96,10 @@ class BotInformation:
         # Handle Status Byte
         status_byte = service_bytes[1]
 
-        bot_mode_int = int(
-            (status_byte & 0x80) == 0x80
-        )  # First bit is the bot mode (0 = one state, 1 = on/off state)
+        bot_mode_int = int((status_byte & 0x80) == 0x80)  # First bit is the bot mode (0 = one state, 1 = on/off state)
         self._bot_mode = SwitchBotMode(bot_mode_int)
 
-        self._is_off = (
-            status_byte & 0x40
-        ) == 0x40  # Second bit is the current bot state (0 = on, 1 = off)
+        self._is_off = (status_byte & 0x40) == 0x40  # Second bit is the current bot state (0 = on, 1 = off)
 
         self._encryption_type = int(
             (status_byte & 0x20) == 0x20
@@ -151,9 +143,7 @@ class BotInformation:
             return
 
         self._current_pass_str = password_str
-        self._current_pass_checksum = zlib.crc32(self._current_pass_str.encode()).to_bytes(
-            4, byteorder="big"
-        )
+        self._current_pass_checksum = zlib.crc32(self._current_pass_str.encode()).to_bytes(4, byteorder="big")
 
         self._is_encrypted = True
 
@@ -251,9 +241,7 @@ class BotInformation:
     def update_alarm(self, response_data: bytearray):
 
         if len(response_data) != 11:
-            print(
-                f"Could not update alarm, invalid response data length {len(response_data)} (Must be 11)"
-            )
+            print(f"Could not update alarm, invalid response data length {len(response_data)} (Must be 11)")
 
         alarm_count = response_data[0]
         alarm_idx = response_data[1]
@@ -273,9 +261,7 @@ class BotInformation:
 
         action_count = response_data[7]
 
-        exec_interval = timedelta(
-            hours=response_data[8], minutes=response_data[9], seconds=response_data[10]
-        )
+        exec_interval = timedelta(hours=response_data[8], minutes=response_data[9], seconds=response_data[10])
 
         info = AlarmInfo(
             exec_repeatedly,
