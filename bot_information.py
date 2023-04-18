@@ -7,7 +7,12 @@ from alarm_info import AlarmInfo, AlarmExecAction, AlarmExecType, DayOfWeek
 
 class BotInformation:
     def __init__(self, get_info_byte_array: Optional[bytearray] = None):
+        """
+        Initialize information class with "Get Information" bytes if present
 
+        :param get_info_byte_array: The byte data from the Get Information request
+        :type get_info_byte_array: Optional[bytearray]
+        """
         # Start Device Info
         self._remaining_battery_percent = 100  # 0-100
         self._firmware_version: float = 6.3
@@ -51,7 +56,12 @@ class BotInformation:
             self._init_from_byte_array(get_info_byte_array)
 
     def _init_from_byte_array(self, get_info_byte_array: bytearray):
+        """
+        Initialize data from "Get Information" bytes
 
+        :param get_info_byte_array: The byte data from the Get Information request
+        :type get_info_byte_array: bytearray
+        """
         if len(get_info_byte_array) != 12:
             raise ValueError(f"Invalid byte array length ({len(get_info_byte_array)})for BotInformation")
 
@@ -76,6 +86,12 @@ class BotInformation:
         self.read_service_bytes(get_info_byte_array[10:12])
 
     def read_service_bytes(self, service_bytes: bytearray) -> None:
+        """
+        Update object from service bytes (either from advertisement or Get Information)
+
+        :param service_bytes: Service byte array
+        :type service_bytes: bytearray
+        """
         if len(service_bytes) < 2 or len(service_bytes) > 3:
             raise ValueError(f"Invalid service bytes length ({len(service_bytes)})for BotInformation")
 
@@ -131,11 +147,17 @@ class BotInformation:
 
     @property
     def password_str(self) -> Optional[str]:
+
         return self._current_pass_str
 
     @password_str.setter
     def password_str(self, password_str: Optional[str]):
+        """
+        Sets the password (or clears with None) and computes the password checksum
 
+        :param password_str: The new password string
+        :type password_str: Optional[str]
+        """
         if password_str is None:
             self._is_encrypted = False
             self._current_pass_str = None
@@ -217,6 +239,12 @@ class BotInformation:
 
     @alarm_count.setter
     def alarm_count(self, count: int):
+        """
+        Updates alarm count (and performs 0 <= n <= 4 bounds checking)
+
+        :param count: The amount of alarms
+        :type count: int
+        """
         if count < 0 or count > 4:
             print(f"Invalid alarm count {count}, must be between 0 and 4!")
             raise UserWarning(f"Invalid alarm count {count}, must be between 0 and 4!")
@@ -229,6 +257,12 @@ class BotInformation:
 
     @system_timestamp.setter
     def system_timestamp(self, timestamp: int):
+        """
+        Updates the timestamp (and performs 0 <= t bounds checking)
+
+        :param timestamp: SwitchBot Unix timestamp
+        :type timestamp: int
+        """
         if timestamp < 0:
             print(f"Invalid timestamp {timestamp}, must be greater than 0!")
             raise UserWarning(f"Invalid timestamp {timestamp}, must be greater than 0!")
@@ -239,7 +273,12 @@ class BotInformation:
         return [info for _, info in self._alarm_infos.items()]
 
     def update_alarm(self, response_data: bytearray):
+        """
+        Update alarm info from fetch alarm info request
 
+        :param response_data: response bytes
+        :type response_data: bytearray
+        """
         if len(response_data) != 11:
             print(f"Could not update alarm, invalid response data length {len(response_data)} (Must be 11)")
 
