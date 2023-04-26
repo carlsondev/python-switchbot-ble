@@ -1,8 +1,13 @@
+'''
+Python-Switchbot-BLE: A Python library for interfacing with Switchbot devices over Bluetooth Low Energy (BLE)
+Copyright (C) 2023  Benjamin Carlson
+'''
+
 from typing import Optional, List, Dict
 import zlib
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-from .bot_types import SwitchBotDeviceType, SwitchBotMode, SwitchBotGroup, f_bytes
+from .bot_types import SwitchBotDeviceType, SwitchBotMode, SwitchBotGroup
 from .alarm_info import AlarmInfo, AlarmExecAction, AlarmExecType, DayOfWeek
 
 

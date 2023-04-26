@@ -1,3 +1,8 @@
+'''
+Python-Switchbot-BLE: A Python library for interfacing with Switchbot devices over Bluetooth Low Energy (BLE)
+Copyright (C) 2023  Benjamin Carlson
+'''
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import List
