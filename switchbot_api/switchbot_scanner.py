@@ -12,7 +12,9 @@ class SwitchBotScanner:
     NORDIC_MANUFACTURER_ID = 0x59
 
     @classmethod
-    def _filter_device_adv(cls, device: BLEDevice, adv: AdvertisementData) -> Tuple[bool, Optional[bytearray]]:
+    def _filter_device_adv(
+        cls, device: BLEDevice, adv: AdvertisementData
+    ) -> Tuple[bool, Optional[bytearray]]:
         """
         Determines if device is a SwitchBot or not
 
@@ -60,7 +62,9 @@ class SwitchBotScanner:
                 await asyncio.sleep(1.0)
                 data = scanner.discovered_devices_and_advertisement_data
                 for _, (dis_device, dis_advertisement) in data.items():
-                    is_switchbot, dev_service_data = cls._filter_device_adv(dis_device, dis_advertisement)
+                    is_switchbot, dev_service_data = cls._filter_device_adv(
+                        dis_device, dis_advertisement
+                    )
 
                     if is_switchbot:
                         bots_found += 1

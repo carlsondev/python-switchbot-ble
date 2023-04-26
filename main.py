@@ -28,7 +28,7 @@ class SwitchBotMITM:
             await asyncio.sleep(5)
             await self._virt_switchbot.set_password(None)
             await asyncio.sleep(5)
-            await self._virt_switchbot.fetch_alarm_info(0)
+            await self._virt_switchbot.fetch_alarm_info(alarm_id=0)
             await asyncio.sleep(5)
             await self._virt_switchbot.set_password("1235")
             await asyncio.sleep(5)

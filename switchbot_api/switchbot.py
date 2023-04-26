@@ -79,7 +79,9 @@ class VirtualSwitchBot:
 
         print(f"Connected to {self._address}")
 
-        await self._client.start_notify(SwitchBotCommand.RESP_CHAR_UUID.value, self._notif_callback_handler)
+        await self._client.start_notify(
+            SwitchBotCommand.RESP_CHAR_UUID.value, self._notif_callback_handler
+        )
 
         await self.update_basic_device_info()
         await asyncio.sleep(1)
@@ -97,7 +99,9 @@ class VirtualSwitchBot:
             return
         await self._client.disconnect()
 
-    async def _notif_callback_handler(self, characteristic: BleakGATTCharacteristic, data: bytearray):
+    async def _notif_callback_handler(
+        self, characteristic: BleakGATTCharacteristic, data: bytearray
+    ):
         """
 
         :param characteristic: The characteristic that was originally requested
@@ -119,7 +123,9 @@ class VirtualSwitchBot:
             return
 
         if request_type == SwitchBotReqType.SET_PASSWORD:
-            print(f"Successfully set password to {self._info.password_str}")  # Current pass is new pass
+            print(
+                f"Successfully set password to {self._info.password_str}"
+            )  # Current pass is new pass
             return
 
         if request_type == SwitchBotReqType.COMMAND:
@@ -142,7 +148,9 @@ class VirtualSwitchBot:
                 print(f"Successfully retrieved alarm count ({self._info.alarm_count})")
 
             if resp_len == 8:
-                self._info.system_timestamp = int.from_bytes(response_data, byteorder="big", signed=False)
+                self._info.system_timestamp = int.from_bytes(
+                    response_data, byteorder="big", signed=False
+                )
                 print(f"Successfully recieved system time ({self._info.system_timestamp})")
 
             if resp_len == 11:
@@ -173,9 +181,13 @@ class VirtualSwitchBot:
             return
 
         self._request_response_queue.put_nowait(request_type)
-        await self._client.write_gatt_char(SwitchBotCommand.REQ_CHAR_UUID.value, message_bytes, response=True)
+        await self._client.write_gatt_char(
+            SwitchBotCommand.REQ_CHAR_UUID.value, message_bytes, response=True
+        )
 
-    def _check_append_pass_check(self, curr_payload: Union[bytearray, List[int]], preappend: bool = False) -> bytearray:
+    def _check_append_pass_check(
+        self, curr_payload: Union[bytearray, List[int]], preappend: bool = False
+    ) -> bytearray:
         """
         (Pre)Append the password checksum to the payload if the password exists
 
@@ -202,7 +214,9 @@ class VirtualSwitchBot:
 
     # | B_0  |                    B_1                      |    B_2    |    B_3    | ... |    B_15    |
     # | 0x57 | v_1 v_0 enc_1 enc_0 cmd_3 cmd_2 cmd_1 cmd_0 | payload_0 | payload_1 | ... | payload_15 |
-    def _build_request_msg(self, command_type: SwitchBotReqType, payload: bytearray, version: int = 0) -> bytearray:
+    def _build_request_msg(
+        self, command_type: SwitchBotReqType, payload: bytearray, version: int = 0
+    ) -> bytearray:
         """
         Builds the header and appends the payload data to build the entire data packet
 
@@ -278,7 +292,9 @@ class VirtualSwitchBot:
             SwitchBotAction.ON,
             SwitchBotAction.OFF,
         ]:
-            print(f"Cannot send state {state.name} to SwitchBot. Only PRESS, ON, and OFF are supported right now.")
+            print(
+                f"Cannot send state {state.name} to SwitchBot. Only PRESS, ON, and OFF are supported right now."
+            )
             return
 
         payload = [state.value]
@@ -319,7 +335,9 @@ class VirtualSwitchBot:
         msg_packet = self._build_request_msg(SwitchBotReqType.COMMAND, payload_bytes)
         await self._send_request(msg_packet, SwitchBotReqType.COMMAND)
 
-        print(f"Sent {len(action_set)} actions with a 1 second delay between them ({f_bytes(msg_packet)})")
+        print(
+            f"Sent {len(action_set)} actions with a 1 second delay between them ({f_bytes(msg_packet)})"
+        )
 
     async def update_basic_device_info(self):
         """
@@ -354,16 +372,28 @@ class VirtualSwitchBot:
 
         if subcommand == TimeManagementInfoSubCommand.DEVICE_TIME:
             if len(payload) != 0 and len(payload) != 8:
-                print(f"Cannot set device time with payload length {len(payload)}, must be equal to 8!")
-                raise UserWarning(f"Cannot set device time with payload length {len(payload)}, must be equal to 8!")
+                print(
+                    f"Cannot set device time with payload length {len(payload)}, must be equal to 8!"
+                )
+                raise UserWarning(
+                    f"Cannot set device time with payload length {len(payload)}, must be equal to 8!"
+                )
         elif subcommand == TimeManagementInfoSubCommand.ALARM_COUNT:
             if len(payload) != 0 and len(payload) != 1:
-                print(f"Cannot set alarm count with payload length {len(payload)}, must be equal to 1!")
-                raise UserWarning(f"Cannot set alarm count with payload length {len(payload)}, must be equal to 1!")
+                print(
+                    f"Cannot set alarm count with payload length {len(payload)}, must be equal to 1!"
+                )
+                raise UserWarning(
+                    f"Cannot set alarm count with payload length {len(payload)}, must be equal to 1!"
+                )
         elif subcommand == TimeManagementInfoSubCommand.ALARM_INFO:
             if len(payload) != 0 and len(payload) != 11:
-                print(f"Cannot set alarm info with payload length {len(payload)}, must be equal to 11!")
-                raise UserWarning(f"Cannot set alarm info with payload length {len(payload)}, must be equal to 11!")
+                print(
+                    f"Cannot set alarm info with payload length {len(payload)}, must be equal to 11!"
+                )
+                raise UserWarning(
+                    f"Cannot set alarm info with payload length {len(payload)}, must be equal to 11!"
+                )
 
             if alarm_id is None:
                 print("Cannot set alarm info without an alarm ID!")
@@ -371,7 +401,9 @@ class VirtualSwitchBot:
 
             if alarm_id < 0 or alarm_id > 4:
                 print(f"Cannot set alarm info with alarm ID {alarm_id}, must be between 0 and 4!")
-                raise UserWarning(f"Cannot set alarm info with alarm ID {alarm_id}, must be between 0 and 4!")
+                raise UserWarning(
+                    f"Cannot set alarm info with alarm ID {alarm_id}, must be between 0 and 4!"
+                )
             # Set nth task/alarm
             subcmd_value = subcmd_value | (alarm_id << 4)
 
@@ -386,7 +418,9 @@ class VirtualSwitchBot:
         unix_seconds = int(time.time())
         seconds_bytes = unix_seconds.to_bytes(8, byteorder="big")
 
-        payload = self._build_set_dev_time_mgm_info_payload(TimeManagementInfoSubCommand.DEVICE_TIME, seconds_bytes)
+        payload = self._build_set_dev_time_mgm_info_payload(
+            TimeManagementInfoSubCommand.DEVICE_TIME, seconds_bytes
+        )
 
         msg_packet = self._build_request_msg(SwitchBotReqType.SET_TIME_MGMT_INFO, payload)
         await self._send_request(msg_packet, SwitchBotReqType.SET_TIME_MGMT_INFO)
@@ -448,14 +482,20 @@ class VirtualSwitchBot:
 
         interval_hours = math.floor(alarm_info.interval.seconds / 60 / 60)
         interval_minutes = math.floor(alarm_info.interval.seconds / 60) - (interval_hours * 60)
-        interval_seconds = alarm_info.interval.seconds - (interval_minutes * 60) - (interval_hours * 60 * 60)
+        interval_seconds = (
+            alarm_info.interval.seconds - (interval_minutes * 60) - (interval_hours * 60 * 60)
+        )
 
         if interval_hours > 5:
             print(f"Cannot set alarm interval to {interval_hours} hours, must be less than 5!")
-            raise UserWarning(f"Cannot set alarm interval to {interval_hours} hours, must be less than 5!")
+            raise UserWarning(
+                f"Cannot set alarm interval to {interval_hours} hours, must be less than 5!"
+            )
 
         if interval_seconds % 10 != 0:
-            print(f"Cannot set alarm interval to {interval_seconds} seconds, must be a multiple of 10!")
+            print(
+                f"Cannot set alarm interval to {interval_seconds} seconds, must be a multiple of 10!"
+            )
             print("Rounding down to the nearest multiple of 10")
             interval_seconds = math.floor(interval_seconds / 10) * 10
 
@@ -476,7 +516,9 @@ class VirtualSwitchBot:
         """
         Fetch current unix timestamp from SwitchBot
         """
-        payload = self._build_set_dev_time_mgm_info_payload(TimeManagementInfoSubCommand.DEVICE_TIME, bytearray())
+        payload = self._build_set_dev_time_mgm_info_payload(
+            TimeManagementInfoSubCommand.DEVICE_TIME, bytearray()
+        )
 
         msg_packet = self._build_request_msg(SwitchBotReqType.GET_TIME_MGMT_INFO, payload)
         await self._send_request(msg_packet, SwitchBotReqType.GET_TIME_MGMT_INFO)
@@ -487,7 +529,9 @@ class VirtualSwitchBot:
         """
         Fetch the number of alarms set
         """
-        payload = self._build_set_dev_time_mgm_info_payload(TimeManagementInfoSubCommand.ALARM_COUNT, bytearray())
+        payload = self._build_set_dev_time_mgm_info_payload(
+            TimeManagementInfoSubCommand.ALARM_COUNT, bytearray()
+        )
 
         msg_packet = self._build_request_msg(SwitchBotReqType.GET_TIME_MGMT_INFO, payload)
         await self._send_request(msg_packet, SwitchBotReqType.GET_TIME_MGMT_INFO)
@@ -521,7 +565,9 @@ class VirtualSwitchBot:
         msg_packet = self._build_request_msg(SwitchBotReqType.EXTENDED_COMMAND, payload)
         await self._send_request(msg_packet, SwitchBotReqType.EXTENDED_COMMAND)
 
-        print(f"Sent set long press duration request for duration {duration_s} ({f_bytes(msg_packet)})")
+        print(
+            f"Sent set long press duration request for duration {duration_s} ({f_bytes(msg_packet)})"
+        )
 
     @property
     def mac_address(self) -> str:
