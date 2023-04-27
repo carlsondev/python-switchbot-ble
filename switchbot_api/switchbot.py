@@ -4,9 +4,8 @@ Copyright (C) 2023  Benjamin Carlson
 '''
 
 from bleak import BleakClient, BleakScanner, BLEDevice, BleakGATTCharacteristic
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Tuple
 import asyncio
-import enum
 import zlib
 import time
 import math
@@ -17,6 +16,7 @@ from .bot_types import (
     SwitchBotRespStatus,
     SwitchBotAction,
     TimeManagementInfoSubCommand,
+    SwitchBotMode,
     f_bytes,
 )
 from .bot_information import BotInformation
@@ -73,22 +73,19 @@ class VirtualSwitchBot:
 
             print(f"Found SwitchBot: {self._device.name} ({self._device.address})")
 
-        self._client = BleakClient(
-            self._device,
-            disconnected_callback=lambda _: asyncio.run_coroutine_threadsafe(
-                self.disconnect_callback_handler(), asyncio.get_event_loop()
-            ),
-        )
+        self._client = BleakClient(self._device)
 
-        await self._client.connect()
-
+        try:
+            await self._client.connect()
+        except asyncio.TimeoutError:
+            raise UserWarning(f"Timeout connecting to {self._address}, try again")
         print(f"Connected to {self._address}")
 
         await self._client.start_notify(
             SwitchBotCommand.RESP_CHAR_UUID.value, self._notif_callback_handler
         )
 
-        await self.update_basic_device_info()
+        await self.fetch_basic_device_info()
         await asyncio.sleep(1)
         await self.fetch_alarm_count()
         await asyncio.sleep(1)
@@ -102,6 +99,8 @@ class VirtualSwitchBot:
         if self._client is None:
             print("Client is not connected. Cannot disconnect.")
             return
+
+        print(f"Disconnecting from SwitchBot ({self._address})")
         await self._client.disconnect()
 
     async def _notif_callback_handler(
@@ -135,8 +134,6 @@ class VirtualSwitchBot:
 
         if request_type == SwitchBotReqType.COMMAND:
             print(f"Successfully sent command to SwitchBot")
-            if len(response_data) > 1:
-                self._info.read_service_bytes(response_data)
             return
 
         if request_type == SwitchBotReqType.GET_BASIC_INFO:
@@ -161,16 +158,6 @@ class VirtualSwitchBot:
             if resp_len == 11:
                 print(f"Successfully recieved alarm info for index {response_data[1]}")
                 self._info.update_alarm(response_data)
-
-    async def disconnect_callback_handler(self):
-        """
-        Called when disconnected from SwitchBot
-        """
-        print("Disconnecting from SwitchBot...")
-
-        # Used for case when called externally
-        if self._client is not None and self._client.is_connected:
-            await self._client.disconnect()
 
     async def _send_request(self, message_bytes: bytearray, request_type: SwitchBotReqType):
         """
@@ -303,8 +290,6 @@ class VirtualSwitchBot:
             return
 
         payload = [state.value]
-        if state == SwitchBotAction.PRESS:
-            payload = []
 
         payload_bytes = self._check_append_pass_check(payload, preappend=True)
 
@@ -314,37 +299,59 @@ class VirtualSwitchBot:
 
         print(f"Sent {state.name} message ({f_bytes(msg_packet)})!")
 
-    # NOTE: Not working. Once I have a better idea on how things have changed since the docs were written, I'll revisit this
-    async def run_action_set(self, action_set: List[SwitchBotAction]):
+    async def run_action_set(self, action_set: List[Tuple[float, SwitchBotAction]]):
         """
-        Run a set of actions (no more than 8) (NOT WORKING RIGHT NOW)
+        Run a set of actions in order (no more than 8)
 
-        :param action_set: The set of actions to run in order
-        :type action_set: List[SwitchBotAction]
+        :param action_set: The set of actions to run in order with delay (seconds) between them (first ignored)
+        :type action_set: List[Tuple[float, SwitchBotAction]]
         """
         actions = action_set.copy()
-        payload = bytearray([actions[0].value])
+
+        # First action does not add a delay to the packet
+        payload = bytearray([actions[0][1].value])
 
         actions = actions[1:]
 
-        if len(actions) > 7:
-            print("Cannot send more than 8 actions in a single message")
+        if len(actions) > 8:
+            print("Cannot send more than 9 actions in a single message")
+            return
+        
+        if self._info.is_encrypted and len(actions) > 7:
+            print("Cannot send more than 8 actions in a single message when using encryption")
             return
 
-        for action in actions:
-            payload.append(1)  # 1 second delay
+        for delay, action in actions:
+            payload.append(delay)  # 1 second delay
             payload.append(action.value)
 
-        payload_bytes = self._check_append_pass_check(payload)
+        payload_bytes = self._check_append_pass_check(payload, preappend=True)
 
         msg_packet = self._build_request_msg(SwitchBotReqType.COMMAND, payload_bytes)
         await self._send_request(msg_packet, SwitchBotReqType.COMMAND)
 
         print(
-            f"Sent {len(action_set)} actions with a 1 second delay between them ({f_bytes(msg_packet)})"
+            f"Sent {len(action_set)} actions ({f_bytes(msg_packet)})"
         )
 
-    async def update_basic_device_info(self):
+    async def set_basic_device_info(self, bot_mode : SwitchBotMode, is_inverse : bool):
+        """
+        Sends a set basic device info message
+        """
+
+        act_mode_byte = 0x00
+        act_mode_byte |= bot_mode.value << 4 # 4 MSB bytes = bot_mode
+        act_mode_byte |= (0x01 if is_inverse else 0x00) # 4 LSB bytes = is_inverse
+
+        payload = self._check_append_pass_check([100, act_mode_byte], preappend=True)
+
+        msg_packet = self._build_request_msg(SwitchBotReqType.SET_BASIC_INFO, payload)
+        await self._send_request(msg_packet, SwitchBotReqType.SET_BASIC_INFO)
+
+        print(f"Sent basic device info set message ({f_bytes(msg_packet)})")
+
+
+    async def fetch_basic_device_info(self):
         """
         Update internal ``info`` object with basic info (after response is received)
         """

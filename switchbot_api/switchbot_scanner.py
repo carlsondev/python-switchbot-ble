@@ -3,8 +3,9 @@ Python-Switchbot-BLE: A Python library for interfacing with Switchbot devices ov
 Copyright (C) 2023  Benjamin Carlson
 '''
 
+
 from bleak import BleakScanner, BLEDevice, AdvertisementData
-from typing import Tuple, AsyncIterator, Optional
+from typing import Tuple, Optional, List
 import asyncio
 
 from .switchbot import VirtualSwitchBot
@@ -16,9 +17,13 @@ class SwitchBotScanner:
     # Manufacturer ID for Nordic Semiconductors
     NORDIC_MANUFACTURER_ID = 0x59
 
-    @classmethod
+
+    def __init__(self, bot_count : int = 1) -> None:
+        self._bot_count = bot_count
+        self._found_mac_addrs : List[str] = []
+
     def _filter_device_adv(
-        cls, device: BLEDevice, adv: AdvertisementData
+        self, device: BLEDevice, adv: AdvertisementData
     ) -> Tuple[bool, Optional[bytearray]]:
         """
         Determines if device is a SwitchBot or not
@@ -30,11 +35,11 @@ class SwitchBotScanner:
         :return: Whether the device is a SwitchBot and if so, the associated service data
         :rtype: Tuple[bool, Optional[bytes]]
         """
-        man_data = adv.manufacturer_data.get(cls.NORDIC_MANUFACTURER_ID)
+        man_data = adv.manufacturer_data.get(self.NORDIC_MANUFACTURER_ID)
         if man_data is None:
             return False, None
 
-        service_data = adv.service_data.get(cls.UNKNOWN_SERVICE_DATA_UUID)
+        service_data = adv.service_data.get(self.UNKNOWN_SERVICE_DATA_UUID)
         if service_data is None:
             return False, None
 
@@ -48,14 +53,14 @@ class SwitchBotScanner:
         print(f"  - RSSI: {adv.rssi}")
 
         return True, bytearray(service_data)
-
-    @classmethod
-    async def scan(cls, bot_count: int) -> AsyncIterator[VirtualSwitchBot]:
+    
+    def __aiter__(self):
+        return self
+    
+    async def __anext__(self):
         """
         Scans for ``bot_count`` SwitchBots before exiting
 
-        :param bot_count: The amount of SwitchBots to discover before exiting
-        :type bot_count: int
         :return: The VirtualSwitchBot found
         :rtype: AsyncIterator[VirtualSwitchBot]
         """
@@ -64,19 +69,33 @@ class SwitchBotScanner:
             bots_found = 0
 
             while True:
+
+                if bots_found >= self._bot_count:
+                    print(f"Found {bots_found} SwitchBots, stopping scanner...")
+                    raise StopAsyncIteration
+
                 await asyncio.sleep(1.0)
                 data = scanner.discovered_devices_and_advertisement_data
                 for _, (dis_device, dis_advertisement) in data.items():
-                    is_switchbot, dev_service_data = cls._filter_device_adv(
+
+                    bot_address = dis_device.address
+                    # Ignore if we already found this device
+                    if bot_address in self._found_mac_addrs:
+                        continue
+
+                    is_switchbot, dev_service_data = self._filter_device_adv(
                         dis_device, dis_advertisement
                     )
 
                     if is_switchbot:
-                        bots_found += 1
-                        switch_bot = VirtualSwitchBot(dis_device.address, device=dis_device)
-                        switch_bot.info.read_service_bytes(dev_service_data)
-                        yield switch_bot
+                        
+                        self._found_mac_addrs.append(bot_address)
 
-                    if bots_found >= bot_count:
-                        print(f"Found {bots_found} SwitchBots, stopping scanner...")
-                        return
+                        bots_found += 1
+                        switch_bot = VirtualSwitchBot(bot_address)
+                        switch_bot.info.read_service_bytes(dev_service_data)
+
+                        return switch_bot
+                    
+    # Alias for easy use
+    next_bot = __anext__

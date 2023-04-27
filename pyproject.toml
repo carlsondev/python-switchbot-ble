@@ -3,19 +3,27 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 [project]
 name = "python-switchbot-ble"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Benjamin Carlson", email="bcarlson336@gmail.com" },
 ]
 description = "A capable Python library for controlling Switchbot devices over Bluetooth Low Energy (Without a Hub)"
 readme = "README.md"
 requires-python = ">=3.7"
+license = "GPL-3.0"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "bleak"
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/carlsondev/python-switchbot-ble"
 "Bug Tracker" = "https://github.com/carlsondev/python-switchbot-ble/issues"
+
+[tool.hatch.build.targets.wheel]
+only-include = ["switchbot_api"]
