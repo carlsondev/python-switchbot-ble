@@ -63,7 +63,7 @@ class SwitchBotScanner:
     
     async def __anext__(self):
         """
-        Scans for ``bot_count`` SwitchBots before exiting
+        Scans for the next SwitchBot until the desired number of SwitchBots are found
 
         :return: The VirtualSwitchBot found
         :rtype: AsyncIterator[VirtualSwitchBot]

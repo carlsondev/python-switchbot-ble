@@ -8,8 +8,17 @@ from enum import Enum
 from typing import List
 from datetime import timedelta
 
+import enum_tools.documentation
 
+__all__ = ["DayOfWeek", "AlarmExecType", "AlarmExecAction", "AlarmInfo"]
+
+enum_tools.documentation.INTERACTIVE = True
+
+@enum_tools.documentation.document_enum
 class DayOfWeek(Enum):
+    '''
+    The day of the week to execute an alarm on
+    '''
     MONDAY = 0
     TUESDAY = 1
     WEDNESDAY = 2
@@ -18,21 +27,30 @@ class DayOfWeek(Enum):
     SATURDAY = 5
     SUNDAY = 6
 
-
+@enum_tools.documentation.document_enum
 class AlarmExecType(Enum):
-    REPEATED = 0
-    REPEAT_N_TIMES_AT_INTERVAL = 1
-    REPEAT_FOREVER_AT_INTERVAL = 2
+    '''
+    The type of execution that will occur
+    '''
+    REPEATED = 0 # doc: "Execute repeatedly"
+    REPEAT_N_TIMES_AT_INTERVAL = 1 # doc: "Execute N times every interval"
+    REPEAT_FOREVER_AT_INTERVAL = 2 # doc: "Execute forever every interval"
 
-
+@enum_tools.documentation.document_enum
 class AlarmExecAction(Enum):
-    ACTION = 0
-    ON = 1
-    OFF = 2
+    '''
+    The action to execute when the alarm is triggered
+    '''
+    ACTION = 0 # doc: "Press"
+    ON = 1  # doc: "Turn on"
+    OFF = 2 # doc: "Turn off"
 
 
 @dataclass
 class AlarmInfo:
+    '''
+    The information for an alarm
+    '''
 
     # If false, execute once
     execute_repeatedly: bool
