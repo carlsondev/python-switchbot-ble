@@ -71,7 +71,7 @@ class VirtualSwitchBot:
                 print(f"Device not found for MAC Address {self._address}")
                 exit(1)
 
-            print(f"Found SwitchBot: {self._device.name} ({self._device.address})")
+            print(f"Found SwitchBot {self._device.name} with specificed MAC Address ({self._device.address})")
 
         self._client = BleakClient(self._device)
 
