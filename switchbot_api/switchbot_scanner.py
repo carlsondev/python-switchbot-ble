@@ -7,6 +7,7 @@ Copyright (C) 2023  Benjamin Carlson
 from bleak import BleakScanner, BLEDevice, AdvertisementData
 from typing import Tuple, Optional, List
 import asyncio
+import platform
 
 from .switchbot import VirtualSwitchBot
 
@@ -44,10 +45,13 @@ class SwitchBotScanner:
             return False, None
 
         mac_addr = device.address
-        # I am not sure if this is only for SwitchBot or is a general pattern
-        mac_bytes = bytearray(int(x, base=16) for x in mac_addr.split(":"))
-        if mac_bytes != man_data:
-            return False, None
+
+        # macOS does not provide the MAC address, only a "UUID", so we can't check it
+        if platform.system() != "Darwin":
+            # I am not sure if this is only for SwitchBot or is a general pattern
+            mac_bytes = bytearray(int(x, base=16) for x in mac_addr.split(":"))
+            if mac_bytes != man_data:
+                return False, None
 
         print(f"Found SwitchBot: {device.name} ({mac_addr})")
         print(f"  - RSSI: {adv.rssi}")
