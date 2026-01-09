@@ -39,7 +39,7 @@ Implement Additional SwitchBot Devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Feel free to examine the documentation and the code to see if there are any gaps that need to be addressed.
-Because eeach of these devices cost money and not everyone will have each device, any additional support is welcome!
+Because each of these devices cost money and not everyone will have each device, any additional support is welcome!
 
 Write Documentation
 ~~~~~~~~~~~~~~~~~~~
